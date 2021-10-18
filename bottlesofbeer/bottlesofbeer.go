@@ -16,9 +16,10 @@ import (
 	//	"net"
 )
 
-var PassHandler = "Pass.DealPass"
 var FinishHandler = "Pass.DealFinish"
+var ConnectionHandler = "Pass.DealConnection"
 var nextAddr string
+var isFinished = false
 
 type Pass struct {
 	Number int
@@ -26,24 +27,41 @@ type Pass struct {
 
 var Client *rpc.Client
 
-func (p *Pass) DealPass(p1 Pass, p2 *Pass) (err error) {
-	if p1.Number > 0 {
-		fmt.Println(p1.Number, " bottles of beer on the wall,", p1.Number, " bottles of beer. Take one down, Pass it around...")
-		e1 := Client.Call(PassHandler, Pass{Number: p1.Number - 1}, nil)
-
-		if e1 != nil {
-			fmt.Println(e1)
-			return
-		}
+func (p *Pass) DealConnection(p1 Pass, p2 *Pass) (err error) {
+	client, err := rpc.Dial("tcp", nextAddr)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(p1.Number, " bottles of beer on the wall, ", p1.Number, "bottles of beer. Take one down, pass it around")
+	if p1.Number-1 < 1 {
+		client.Call(FinishHandler, Pass{Number: 0}, &Pass{Number: 0})
+		os.Exit(2)
 	} else {
-		fmt.Println("all has been taken")
-		Client.Call(FinishHandler, nil, nil)
+		client.Call(ConnectionHandler, Pass{Number: p1.Number - 1}, &Pass{Number: 0})
+		return
+	}
+
+	return
+
+}
+
+func (p *Pass) DealFinish(p1 Pass, p2 *Pass) (err error) {
+	if isFinished {
+		os.Exit(2)
+		return
+	}
+	fmt.Println("all has been taken")
+	client, err := rpc.Dial("tcp", nextAddr)
+	defer client.Close()
+	if err != nil {
+		fmt.Println(err)
 		os.Exit(2)
 	}
-	return
-}
-func (p *Pass) DealFinish(p1 Pass, p2 *Pass) (err error) {
-	fmt.Println("all has been taken")
+	isFinished = true
+	client.Call(FinishHandler, Pass{Number: 0}, &Pass{Number: 0})
+	client.Call(FinishHandler, Pass{Number: 0}, &Pass{Number: 0})
+
+	time.Sleep(5 * time.Second)
 	os.Exit(2)
 	return
 }
@@ -52,27 +70,24 @@ func main() {
 	thisPort := flag.String("this", "8030", "Port for this process to listen on")
 	flag.StringVar(&nextAddr, "next", "localhost:8030", "IP:Port string for next member of the round.")
 	bottles := flag.Int("n", 0, "Bottles of Beer (launches song if not 0)")
-	target := flag.String("target", "127.0.0.1:8030", "the ip address for the target process")
+
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 	pass := new(Pass)
 	rpc.Register(pass)
-	//err := rpc.Register(&PassOperation{})
-	//if err != nil {
-	//	fmt.Println(err)
-	//		return
-	//	}
 
 	//TODO: Up to you from here! Remember, you'll need to both listen for
 	//RPC calls and make your own.
 	fmt.Println(*thisPort)
-	fmt.Println(*target)
-	listener, _ := net.Listen("tcp", ":"+*thisPort)
+	fmt.Println(nextAddr)
+	listener, err := net.Listen("tcp", ":"+*thisPort)
+	if err != nil {
+		fmt.Println(err)
+	}
 	defer func(listener net.Listener) {
 		err := listener.Close()
 		if err != nil {
-			fmt.Println(err)
-			return
+
 		}
 	}(listener)
 
@@ -82,30 +97,13 @@ func main() {
 			fmt.Println("sleep for turn:", i)
 
 		}
-		fmt.Println(*target)
 
-		Client, _ = rpc.Dial("tcp", *target)
+		go rpc.Accept(listener)
+
+		Client, _ = rpc.Dial("tcp", nextAddr)
+		Client.Call(ConnectionHandler, Pass{Number: *bottles}, &Pass{Number: 0})
 
 	}
-	fmt.Println("aaa")
+
 	rpc.Accept(listener)
-	fmt.Println("bbb")
-	if *bottles == 0 {
-		Client, _ = rpc.Dial("tcp", *target)
-		defer func(client *rpc.Client) {
-			err := client.Close()
-			if err != nil {
-				fmt.Println(err)
-			}
-		}(Client)
-	}
-
-	if *bottles != 0 {
-		fmt.Println("11331qwdfAFWAS")
-		errC := Client.Call(PassHandler, Pass{Number: 0}, nil)
-		if errC != nil {
-			fmt.Println(errC)
-			return
-		}
-	}
 }

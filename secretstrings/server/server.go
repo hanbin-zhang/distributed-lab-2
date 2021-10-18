@@ -55,5 +55,7 @@ func main() {
 			return
 		}
 	}(listener)
+	fmt.Println("aaa")
 	rpc.Accept(listener)
+	fmt.Println("bbb")
 }
