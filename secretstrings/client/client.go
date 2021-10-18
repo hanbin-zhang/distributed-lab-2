@@ -13,7 +13,7 @@ func main() {
 	server := flag.String("server", "127.0.0.1:8030", "IP:port string to connect to as server")
 	flag.Parse()
 	fmt.Println("Server: ", *server)
-	client, _ := rpc.Dial("tcp", *server)
+	client, o := rpc.Dial("tcp", *server)
 	defer func(client *rpc.Client) {
 		err := client.Close()
 		if err != nil {
