@@ -35,7 +35,8 @@ func (p *Pass) DealConnection(p1 Pass, p2 *Pass) (err error) {
 	}
 	fmt.Println(p1.Number, " bottles of beer on the wall, ", p1.Number, "bottles of beer. Take one down, pass it around")
 	if p1.Number-1 < 1 {
-		client.Call(FinishHandler, Pass{Number: 0}, &Pass{Number: 0})
+		fmt.Println("all has been taken")
+		client.Go(ConnectionHandler, Pass{Number: 0}, &Pass{Number: 0}, nil)
 		os.Exit(2)
 	} else {
 		client.Go(ConnectionHandler, Pass{Number: p1.Number - 1}, &Pass{Number: 0}, nil)
