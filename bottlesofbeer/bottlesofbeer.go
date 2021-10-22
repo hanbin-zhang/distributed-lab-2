@@ -29,6 +29,7 @@ var Client *rpc.Client
 
 func (p *Pass) DealConnection(p1 Pass, p2 *Pass) (err error) {
 	client, err := rpc.Dial("tcp", nextAddr)
+	defer client.Close()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -37,7 +38,7 @@ func (p *Pass) DealConnection(p1 Pass, p2 *Pass) (err error) {
 		client.Call(FinishHandler, Pass{Number: 0}, &Pass{Number: 0})
 		os.Exit(2)
 	} else {
-		client.Call(ConnectionHandler, Pass{Number: p1.Number - 1}, &Pass{Number: 0})
+		client.Go(ConnectionHandler, Pass{Number: p1.Number - 1}, &Pass{Number: 0}, nil)
 		return
 	}
 
@@ -92,7 +93,7 @@ func main() {
 	}(listener)
 
 	if *bottles != 0 {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 3; i++ {
 			time.Sleep(1 * time.Second)
 			fmt.Println("sleep for turn:", i)
 
